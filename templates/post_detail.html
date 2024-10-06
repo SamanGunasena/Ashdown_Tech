@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post['title'] }}{% endblock %}
+
+{% block content %}
+    <h1>{{ post['title'] }}</h1>
+    <p>{{ post['content'] }}</p>
+    <p><small>Posted by {{ post['author'] }} on {{ post['created_at'] }}</small></p>
+    {% if post.filename %}
+    <p><a href="{{ url_for('static', filename='uploads/' ~ post.filename) }}" download>Download attachment</a></p>
+
+{% endif %}
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Back to Home</a>
+{% endblock %}

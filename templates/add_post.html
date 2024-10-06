@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Add Post{% endblock %}
+
+{% block content %}
+    <h1 class="text-center">Add a New Post</h1>
+    <div class="container mt-5">
+        <form method="POST" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.title.label(class="form-label") }}
+                {{ form.title(class="form-control", size=32) }}
+            </div>
+            <div class="mb-3">
+                {{ form.content.label(class="form-label") }}
+                {{ form.content(class="form-control", rows=10) }}
+            </div>
+            <div class="mb-3">
+                {{ form.file.label(class="form-label") }}
+                {{ form.file(class="form-control") }}
+            </div>
+            <div class="mb-3 form-check">
+                {{ form.show_author.label(class="form-check-label") }}
+                {{ form.show_author(class="form-check-input") }}
+            </div>
+            <div>
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+{% endblock %}

@@ -146,7 +146,7 @@ def add_post():
         # Insert the post into the database
         conn = get_db_connection()
         conn.execute('INSERT INTO posts (title, content, author, filename, show_author) VALUES (?, ?, ?, ?, ?)',
-                     (title, content, current_user.username, filename, show_author))
+                     (title, content, current_user.firstname, filename, show_author))
         conn.commit()
         conn.close()
 

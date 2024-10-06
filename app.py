@@ -21,9 +21,11 @@ login_manager.login_view = 'login'
 
 
 class User(UserMixin):
-    def __init__(self, id, username, password, is_admin, is_approved):
+    def __init__(self, id, firstname,lastname, email,  password, is_admin, is_approved):
         self.id = id
-        self.username = username
+        self.firstname = firstname
+        self.lastname = lastname
+        self.email = email
         self.password = password
         self.is_admin = is_admin
         self.is_approved = is_approved
@@ -46,7 +48,7 @@ def load_user(user_id):
     conn.close()
     if user is None:
         return None
-    return User(user['id'], user['username'], user['password'], user['is_admin'], user['is_approved'])
+    return User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'], user['is_admin'], user['is_approved'])
 
 
 # Home page to display all blog posts
@@ -62,13 +64,16 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
+        firstname = request.form['firstname']
+        lastname = request.form['lastname']
+        email = request.form['email']
         password = request.form['password']
         hashed_password = generate_password_hash(password)
 
         conn = get_db_connection()
-        conn.execute('INSERT INTO users (username, password, is_admin, is_approved) VALUES (?, ?, 0, 0)',
-                     (username, hashed_password))
+        conn.execute('INSERT INTO users (firstname,lastname, email, password, is_admin, is_approved) VALUES (?, ?, '
+                     '?, ?, 0, 0)',
+                     (firstname, lastname, email, hashed_password))
         conn.commit()
         conn.close()
 
@@ -81,18 +86,18 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
-        print(username, password)
+        print(email, password)
 
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
         print(user)
         if user and check_password_hash(user['password'], password):
             print("logged in")
             if user['is_approved']:
-                user_obj = User(user['id'], user['username'], user['password'], user['is_admin'], user['is_approved'])
+                user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'], user['is_admin'], user['is_approved'])
                 login_user(user_obj)
                 flash('You have been logged in!', 'success')
 
@@ -255,7 +260,9 @@ if __name__ == '__main__':
         conn = get_db_connection()
         conn.execute('''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
+            firstname TEXT NOT NULL,
+            lastname TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             is_admin INTEGER DEFAULT 0,
             is_approved INTEGER DEFAULT 0

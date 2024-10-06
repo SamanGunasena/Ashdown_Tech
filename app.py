@@ -21,7 +21,7 @@ login_manager.login_view = 'login'
 
 
 class User(UserMixin):
-    def __init__(self, id, firstname,lastname, email,  password, is_admin, is_approved):
+    def __init__(self, id, firstname, lastname, email, password, is_admin, is_approved):
         self.id = id
         self.firstname = firstname
         self.lastname = lastname
@@ -48,10 +48,11 @@ def load_user(user_id):
     conn.close()
     if user is None:
         return None
-    return User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'], user['is_admin'], user['is_approved'])
+    return User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'], user['is_admin'],
+                user['is_approved'])
 
 
-# Home page to display all blog posts
+# Home page to display all posts
 @app.route('/')
 def home():
     conn = get_db_connection()
@@ -61,6 +62,7 @@ def home():
     return render_template('home.html', posts=posts, current_year=current_year)
 
 
+# user registration route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -97,7 +99,8 @@ def login():
         if user and check_password_hash(user['password'], password):
             print("logged in")
             if user['is_approved']:
-                user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'], user['is_admin'], user['is_approved'])
+                user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'],
+                                user['is_admin'], user['is_approved'])
                 login_user(user_obj)
                 flash('You have been logged in!', 'success')
 
@@ -123,6 +126,7 @@ def logout():
     return redirect(url_for('home'))
 
 
+# add post route
 @app.route('/add_post', methods=['GET', 'POST'])
 @login_required
 def add_post():
@@ -156,6 +160,7 @@ def add_post():
     return render_template('add_post.html', form=form)  # Pass the form to the template
 
 
+# admin dashboard routes
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
@@ -169,6 +174,7 @@ def admin_dashboard():
     return render_template('admin_dashboard.html', users=users, posts=posts)
 
 
+# delete user route
 @app.route('/admin/delete/<int:user_id>', methods=['GET'])
 @login_required
 def delete_user(user_id):
@@ -184,6 +190,7 @@ def delete_user(user_id):
     return redirect(url_for('admin_dashboard'))
 
 
+# delete post route
 @app.route('/admin/delete_post/<int:post_id>', methods=['GET'])
 @login_required
 def delete_post(post_id):
@@ -231,6 +238,7 @@ def approve_user(user_id):
     return redirect(url_for('admin_dashboard'))
 
 
+# single post page
 @app.route('/post/<int:post_id>')
 def post_detail(post_id):
     conn = get_db_connection()
@@ -242,6 +250,7 @@ def post_detail(post_id):
     return render_template('post_detail.html', post=post)
 
 
+# search a post
 @app.route('/search', methods=['GET'])
 def search():
     query = request.args.get('query', '')  # Get the search query from the URL

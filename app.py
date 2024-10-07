@@ -93,14 +93,14 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        print(email, password)
+
 
         conn = get_db_connection()
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
-        print(user)
+
         if user and check_password_hash(user['password'], password):
-            print("logged in")
+            
             if user['is_approved']:
                 user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'],
                                 user['is_admin'], user['is_approved'])

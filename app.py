@@ -94,13 +94,12 @@ def login():
         email = request.form['email']
         password = request.form['password']
 
-
         conn = get_db_connection()
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
 
         if user and check_password_hash(user['password'], password):
-            
+
             if user['is_approved']:
                 user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'],
                                 user['is_admin'], user['is_approved'])

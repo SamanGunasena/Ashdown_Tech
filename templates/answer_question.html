@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Answer Question{% endblock %}
+
+{% block content %}
+    <h1 class="text-center">Answer Question</h1>
+    <div class="container mt-5">
+        <div class="mb-3">
+            <label for="question" class="form-label">Question</label>
+            <p>{{ question['question'] }}</p>
+        </div>
+
+        <!-- List of existing answers -->
+        <h3>Answers:</h3>
+        <ul class="list-group">
+            {% for answer in answers %}
+                <li class="list-group-item">
+                    <p>{{ answer['answer'] }}</p>
+                    <small>Answered by {{ answer['author'] }} on {{ answer['created_at'] }}</small>
+                </li>
+            {% else %}
+                <li class="list-group-item">No answers yet.</li>
+            {% endfor %}
+        </ul>
+
+        <!-- Form to submit a new answer -->
+        <form method="POST" class="mt-4">
+            <div class="mb-3">
+                <label for="answer" class="form-label">Your Answer</label>
+                <textarea class="form-control" name="answer" rows="5" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Answer</button>
+        </form>
+    </div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results{% endblock %}
+
+{% block content %}
+<div class="container">
+        <form action="{{ url_for('search') }}" method="get" class="mb-4">
+            <div class="input-group mb-3">
+                <input type="text" name="query" class="form-control" placeholder="Search posts..." required>
+                <button type="submit" class="btn btn-primary">Search Posts</button>
+            </div>
+        </form>
+    </div>
+    <h1 class="text-center">Search Results for "{{ query }}"</h1>
+    <div class="container">
+        {% if posts %}
+            <div class="row">
+                {% for post in posts %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
+                                </h5>
+                                <p class="card-text">{{ post.content[:150] }}...</p>  <!-- Show first 150 characters -->
+                                {% if post.filename %}
+                                    <p><a href="{{ url_for('static', filename='uploads/' ~ post.filename) }}" download>Download attachment</a></p>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-muted">
+                                {% if post.show_author %}
+                                    Author: {{ post.author }}
+                                {% else %}
+                                    Author: Anonymous
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No posts found for your search.</p>
+        {% endif %}
+    </div>
+{% endblock %}

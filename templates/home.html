@@ -2,12 +2,15 @@
 
 {% block title %}Home{% endblock %}
 {% block content %}
+
+
+
     <h1 class="text-center">Posts</h1>
     <div class="container">
         <form action="{{ url_for('search') }}" method="get" class="mb-4">
-            <div class="input-group">
+            <div class="input-group mb-3">
                 <input type="text" name="query" class="form-control" placeholder="Search posts..." required>
-                <button type="submit" class="btn btn-primary">Search</button>
+                <button type="submit" class="btn btn-primary">Search Posts</button>
             </div>
         </form>
     </div>
@@ -35,4 +38,48 @@
             </div>
         {% endfor %}
     </div>
+
+    <h1 class="text-center">Questions and Answers</h1>
+    <div class="container">
+
+        <form action="{{ url_for('q_search') }}" method="get" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="query" class="form-control" placeholder="Search questions..." required>
+                <button type="submit" class="btn btn-primary">Search Questions</button>
+            </div>
+        </form>
+    </div>
+    <div class="container mt-5">
+        {% if questions %}
+            <ul class="list-group">
+                {% for question in questions %}
+                    <li class="list-group-item">
+                        <h5>Q: {{ question['topic'] }}</h5>
+                        <h6>{{ question['question'] }}</h6>
+
+                        <!-- Display all answers related to the question -->
+                        <ul class="list-group mt-2">
+                            {% for answer in question['answers'] %}
+                                <li class="list-group-item">
+                                    <p>{{ answer['answer'] }}</p>
+                                    <small>Answered by {{ answer['author'] }} on {{ answer['created_at'] }}</small>
+                                </li>
+                            {% else %}
+                                <li class="list-group-item">No answers yet.</li>
+                            {% endfor %}
+                        </ul>
+
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('answer_question', question_id=question['id']) }}" class="btn btn-sm btn-primary mt-2">Answer this Question</a>
+                        {% else %}
+                            <p><em>Login to answer this question.</em></p>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No questions have been asked yet.</p>
+        {% endif %}
+    </div>
+
 {% endblock %}

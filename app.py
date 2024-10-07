@@ -6,6 +6,7 @@ import sqlite3
 import os
 from datetime import datetime
 from forms import PostForm
+from forms import QuestionForm
 
 UPLOAD_FOLDER = 'static/uploads/'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -57,9 +58,11 @@ def load_user(user_id):
 def home():
     conn = get_db_connection()
     posts = conn.execute('SELECT * FROM posts').fetchall()
+    # Fetch questions with answers using the helper function
+    questions = get_questions_and_answers(conn)
     conn.close()
     current_year = datetime.now().year
-    return render_template('home.html', posts=posts, current_year=current_year)
+    return render_template('home.html', posts=posts, questions=questions, current_year=current_year)
 
 
 # user registration route
@@ -260,7 +263,96 @@ def search():
         (f'%{query}%', f'%{query}%')
     ).fetchall()
     conn.close()
-    return render_template('home.html', posts=posts)
+    return render_template('posts.html', posts=posts, query=query)
+
+
+# search a question
+@app.route('/q_search', methods=['GET'])
+def q_search():
+    query = request.args.get('query', '')  # Get the search query from the URL
+    conn = get_db_connection()
+    questions = conn.execute(
+        'SELECT * FROM questions WHERE topic LIKE ? OR question LIKE ?',
+        (f'%{query}%', f'%{query}%')
+    ).fetchall()
+    conn.close()
+    return render_template('questions.html', questions=questions, query=query)
+
+
+@app.route('/answer_question/<int:question_id>', methods=['GET', 'POST'])
+@login_required
+def answer_question(question_id):
+    conn = get_db_connection()
+    question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
+
+    if request.method == 'POST':
+        answer = request.form['answer']
+        conn.execute('INSERT INTO answers (question_id, answer, author, user_id) VALUES (?, ?, ?, ?)',
+                     (question_id, answer, current_user.firstname, current_user.id))
+        conn.commit()
+        conn.close()
+        flash('Your answer has been submitted successfully!', 'success')
+        return redirect(url_for('questions'))
+
+    answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question_id,)).fetchall()
+    conn.close()
+
+    return render_template('answer_question.html', question=question, answers=answers)
+
+
+@app.route('/questions')
+def questions():
+    conn = get_db_connection()
+    questions = conn.execute('SELECT * FROM questions').fetchall()
+
+    questions_with_answers = []
+    for question in questions:
+        answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question['id'],)).fetchall()
+        questions_with_answers.append({
+            'question': question['question'],
+            'id': question['id'],
+            'created_at': question['created_at'],
+            'answers': answers
+        })
+
+    conn.close()
+    return render_template('questions.html', questions=questions_with_answers)
+
+
+@app.route('/ask_question', methods=['GET', 'POST'])
+@login_required
+def ask_question():
+    if request.method == 'POST':
+        topic = request.form['topic']
+        question = request.form['question']
+        author = current_user.firstname
+
+        # Insert the new question into the database
+        conn = get_db_connection()
+        conn.execute('INSERT INTO questions (topic, question, author) VALUES (?, ?, ?)', (topic, question, author))
+        conn.commit()
+        conn.close()
+
+        flash('Your question has been submitted successfully!', 'success')
+        return redirect(url_for('questions'))
+
+    return render_template('ask_question.html')
+
+
+def get_questions_and_answers(conn):
+    questions = conn.execute('SELECT * FROM questions').fetchall()
+    questions_with_answers = []
+
+    for question in questions:
+        answers = conn.execute('SELECT a.answer, a.created_at, u.firstname AS author FROM answers a '
+                               'LEFT JOIN users u ON a.user_id = u.id '
+                               'WHERE a.question_id = ?', (question['id'],)).fetchall()
+
+        question_dict = dict(question)
+        question_dict['answers'] = answers
+        questions_with_answers.append(question_dict)
+
+    return questions_with_answers
 
 
 if __name__ == '__main__':
@@ -285,6 +377,31 @@ if __name__ == '__main__':
             show_author BOOLEAN DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
+
+        # Create the questions table if not already created
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic TEXT NOT NULL,
+                question TEXT NOT NULL,
+                author TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Create the answers table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_id INTEGER NOT NULL,
+                answer TEXT NOT NULL,
+                author TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+            )
+        ''')
+
         conn.commit()
         conn.close()
 

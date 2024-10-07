@@ -9,3 +9,8 @@ class PostForm(FlaskForm):
     file = FileField('File')
     show_author = BooleanField('Display Author Name')
     submit = SubmitField('Add Post')
+
+
+class QuestionForm(FlaskForm):
+    question = StringField('Your Question', validators=[DataRequired()])
+    submit = SubmitField('Submit Question')

@@ -10,7 +10,6 @@ import os
 from datetime import datetime
 from forms import PostForm, RegistrationForm, QuestionForm, AnswerForm
 
-
 UPLOAD_FOLDER = 'static/uploads/'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
@@ -66,6 +65,11 @@ def home():
     conn.close()
     current_year = datetime.now().year
     return render_template('home.html', posts=posts, questions=questions, current_year=current_year)
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 # user registration route
@@ -295,7 +299,7 @@ def answer_question(question_id):
     # Fetch the question and its related answers
     question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
     answers = conn.execute(
-        'SELECT a.answer, a.created_at, u.firstname AS author FROM answers a '
+        'SELECT a.answer, a.created_at, a.attachment, u.firstname AS author FROM answers a '
         'LEFT JOIN users u ON a.user_id = u.id WHERE a.question_id = ?',
         (question_id,)
     ).fetchall()
@@ -308,10 +312,21 @@ def answer_question(question_id):
         new_answer = form.answer.data
         user_id = current_user.id  # Assuming you have a logged-in user
 
+        # Handle file upload if an attachment is provided
+        attachment_filename = None
+        if 'attachment' in request.files:
+            attachment = request.files['attachment']
+            if attachment and allowed_file(attachment.filename):  # Check if the file is allowed
+                original_filename = secure_filename(attachment.filename)
+                # Generate a unique filename
+                timestamp = datetime.now().strftime('%Y%m%d%H%M%S')  # Format: YYYYMMDDHHMMSS
+                attachment_filename = f"{timestamp}_{original_filename}"  # Append timestamp to filename
+                attachment.save(os.path.join(app.config['UPLOAD_FOLDER'], attachment_filename))
+
         # Insert the new answer into the database
         conn.execute(
-            'INSERT INTO answers (question_id, answer, author, user_id) VALUES (?, ?, ?, ?)',
-            (question_id, new_answer, current_user.firstname, current_user.id)
+            'INSERT INTO answers (question_id, answer, author, user_id, attachment) VALUES (?, ?, ?, ?, ?)',
+            (question_id, new_answer, current_user.firstname, user_id, attachment_filename)
         )
         conn.commit()
         conn.close()
@@ -347,7 +362,6 @@ def questions():
 def ask_question():
     form = QuestionForm()
     if request.method == 'POST':
-
         topic = form.topic.data
         question = form.question.data
         author = current_user.firstname
@@ -423,6 +437,7 @@ if __name__ == '__main__':
                 author TEXT NOT NULL,
                 user_id INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                attachment TEXT,
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
             )
         ''')

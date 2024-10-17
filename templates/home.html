@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 
 {% block title %}Home{% endblock %}
+
 {% block content %}
-
-
-
     <h1 class="text-center">Posts</h1>
     <div class="container">
         <form action="{{ url_for('search') }}" method="get" class="mb-4">
@@ -15,33 +13,32 @@
         </form>
     </div>
     <div class="row">
-        {% for post in posts %}
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
-                        </h5>
-                        <p class="card-text">{{ post.content[:150] }}...</p>  <!-- Show first 150 characters -->
-                        {% if post.filename %}
-                            <p><a href="{{ url_for('static', filename='uploads/' ~ post.filename) }}" download>Download attachment</a></p>
-                        {% endif %}
-                    </div>
-                    <div class="card-footer text-muted">
-                        {% if post.show_author %}
-                            Author: {{ post.author }}
-                        {% else %}
-                            Author: Anonymous
-                        {% endif %}
+        {% if posts %}
+            {% for post in posts %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title|e }}</a>
+                            </h5>
+                            <p class="card-text">{{ post.content[:150]|e }}...</p>  <!-- Show first 150 characters -->
+                            {% if post.filename %}
+                                <p><a href="{{ url_for('static', filename='uploads/' ~ post.filename) }}" download>Download attachment</a></p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-muted">
+                            Author: {{ post.author|e if post.show_author else 'Anonymous' }}
+                        </div>
                     </div>
                 </div>
-            </div>
-        {% endfor %}
+            {% endfor %}
+        {% else %}
+            <p>No posts available at this time.</p>
+        {% endif %}
     </div>
 
     <h1 class="text-center">Questions and Answers</h1>
     <div class="container">
-
         <form action="{{ url_for('q_search') }}" method="get" class="mb-4">
             <div class="input-group">
                 <input type="text" name="query" class="form-control" placeholder="Search questions..." required>
@@ -54,15 +51,20 @@
             <ul class="list-group">
                 {% for question in questions %}
                     <li class="list-group-item">
-                        <h5>Q: {{ question['topic'] }}</h5>
-                        <h6>{{ question['question'] }}</h6>
+                        <h5>Q: {{ question['topic']|e }}</h5>
+                        <h6>{{ question['question']|e }}</h6>
 
                         <!-- Display all answers related to the question -->
                         <ul class="list-group mt-2">
                             {% for answer in question['answers'] %}
                                 <li class="list-group-item">
-                                    <p>{{ answer['answer'] }}</p>
-                                    <small>Answered by {{ answer['author'] }} on {{ answer['created_at'] }}</small>
+                                    <p>{{ answer['answer']|e }}</p>
+                                    {% if answer['attachment'] %}
+                                        <p>
+                                            <a href="{{ url_for('static', filename='uploads/' ~ answer['attachment']) }}" download>Download Attachment</a>
+                                        </p>
+                                    {% endif %}
+                                    <small>Answered by {{ answer['author']|e }} on {{ answer['created_at'] }}</small>
                                 </li>
                             {% else %}
                                 <li class="list-group-item">No answers yet.</li>
@@ -81,5 +83,4 @@
             <p>No questions have been asked yet.</p>
         {% endif %}
     </div>
-
 {% endblock %}

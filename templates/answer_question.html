@@ -17,6 +17,11 @@
             {% for answer in answers %}
                 <li class="list-group-item">
                     <p>{{ answer['answer'] }}</p>
+                    {% if answer['attachment'] %}
+                        <p>
+                            <a href="{{ url_for('static', filename='uploads/' ~ answer['attachment']) }}" download>Download attachment</a>
+                        </p>
+                    {% endif %}
                     <small>Answered by {{ answer['author'] }} on {{ answer['created_at'] }}</small>
                 </li>
             {% else %}
@@ -25,15 +30,20 @@
         </ul>
 
         <!-- Form to submit a new answer -->
-        <form method="POST" class="mt-4">
+        <form method="POST" enctype="multipart/form-data" class="mt-4">  <!-- Added enctype -->
             {{ form.hidden_tag() }}
 
             <div class="mb-3">
                 {{ form.answer.label(class="form-label") }}
-                {{ form.answer(class="form-control", rows=5) }}
+                {{ form.answer(class="form-control", rows=5, placeholder="Type your answer here...") }}  <!-- Added placeholder -->
                 {% if form.answer.errors %}
                     <div class="text-danger">{{ form.answer.errors[0] }}</div>
                 {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label for="attachment" class="form-label">Attach a file (optional)</label>
+                <input type="file" class="form-control" name="attachment" id="attachment" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">  <!-- File input for attachment with accepted file types -->
             </div>
 
             <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>

@@ -2,13 +2,14 @@ import uuid
 
 from flask import Flask, render_template, redirect, url_for, flash, session, request, abort, current_app
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_wtf import CSRFProtect
 from markupsafe import escape
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
 import os
 from datetime import datetime
-from forms import PostForm, RegistrationForm, QuestionForm, AnswerForm
+from forms import PostForm, RegistrationForm, QuestionForm, AnswerForm, LoginForm
 
 UPLOAD_FOLDER = 'static/uploads/'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -16,6 +17,10 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'Abcde1234!'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Initialize the login manager
 login_manager = LoginManager()
@@ -99,17 +104,16 @@ def register():
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        # Get and escape the user input
-        email = escape(request.form['email'])
-        password = request.form['password']
+    form = LoginForm()  # Create an instance of the LoginForm
+
+    if form.validate_on_submit():  # Use the form's validation
+        email = form.email.data  # Get the email from the form
+        password = form.password.data  # Get the password from the form
 
         conn = get_db_connection()
-        # Use a parameterized query to prevent SQL injection
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
 
-        # Check if the user exists and if the password matches
         if user and check_password_hash(user['password'], password):
             if user['is_approved']:
                 user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'],
@@ -117,7 +121,6 @@ def login():
                 login_user(user_obj)
                 flash('You have been logged in!', 'success')
 
-                # Redirect to admin dashboard if user is an admin
                 if user['is_admin']:
                     return redirect(url_for('admin_dashboard'))
                 else:
@@ -127,7 +130,7 @@ def login():
         else:
             flash('Login Unsuccessful. Please check your credentials.', 'danger')
 
-    return render_template('login.html')
+    return render_template('login.html', form=form)  # Pass the form to the template
 
 
 # Logout

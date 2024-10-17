@@ -2,6 +2,7 @@
 {% block title %}Admin Dashboard{% endblock %}
 {% block content %}
     <h1 class="text-center">Admin Dashboard</h1>
+<div>
     <h3>Users</h3>
     <table class="table">
         <thead>
@@ -30,6 +31,8 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+<div>
 <h3>Posts</h3>
 <table class="table">
     <thead>
@@ -53,7 +56,6 @@
         <td> {{ post.filename }} </td>
         <td> <a href="{{ url_for('delete_post', post_id=post.id) }}" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this user?');">Delete</a></td>
 
-
     </tr>
 
 
@@ -65,4 +67,45 @@
     </tbody>
 
 </table>
+    </div>
+<div class="container mt-5">
+    <h3>Q and A</h3>
+    {% if questions_with_answers %}
+        <ul class="list-group">
+            {% for qna in questions_with_answers %}
+                <li class="list-group-item">
+                    <h5>Q: {{ qna['question']|e }}</h5>
+                    <h6>{{ qna['created_at']|e }}</h6>
+
+                    <!-- Display all answers related to the question -->
+                    <ul class="list-group mt-2">
+                        {% for answer in qna['answers'] %}
+                            <li class="list-group-item">
+                                <p>{{ answer['answer']|e }}</p>
+                                {% if answer['attachment'] %}
+                                    <p>
+                                        <a href="{{ url_for('static', filename='uploads/' ~ answer['attachment']) }}" download>Download Attachment</a>
+                                    </p>
+                                {% endif %}
+                                <small>Answered by {{ answer['author']|e }} on {{ answer['created_at'] }}</small>
+                            </li>
+                        {% else %}
+                            <li class="list-group-item">No answers yet.</li>
+                        {% endfor %}
+                    </ul>
+                    <form action="{{ url_for('delete_question', question_id=qna['id']) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this question and all its related answers?');">
+
+                        <button type="submit" class="btn btn-danger btn-sm">Delete Question</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No questions have been asked yet.</p>
+    {% endif %}
+</div>
+
+<button onclick="topFunction()" id="backToTopBtn" class="btn btn-primary btn-lg" title="Go to top">
+    <i class="bi bi-arrow-up"></i> <!-- Bootstrap icon -->
+</button>
 {% endblock %}

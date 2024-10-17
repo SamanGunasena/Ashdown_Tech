@@ -1,6 +1,6 @@
 import uuid
 
-from flask import Flask, render_template, redirect, url_for, flash, session, request, abort
+from flask import Flask, render_template, redirect, url_for, flash, session, request, abort, current_app
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from markupsafe import escape
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -174,17 +174,26 @@ def add_post():
 
 
 # admin dashboard routes
-@app.route('/admin/dashboard')
-@login_required
+@app.route('/admin_dashboard')
 def admin_dashboard():
-    if not current_user.is_admin:
-        return redirect(url_for('home'))
-
     conn = get_db_connection()
-    users = conn.execute('SELECT * FROM users ').fetchall()
-    posts = conn.execute('SELECT * from posts ').fetchall()
+    users = conn.execute('SELECT * FROM users').fetchall()
+    posts = conn.execute('SELECT * FROM posts').fetchall()
+    qanda = conn.execute('SELECT * FROM questions').fetchall()
+
+    questions_with_answers = []
+    for question in qanda:
+        answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question['id'],)).fetchall()
+        questions_with_answers.append({
+            'question': question['question'],
+            'id': question['id'],
+            'created_at': question['created_at'],
+            'answers': answers
+        })
+
     conn.close()
-    return render_template('admin_dashboard.html', users=users, posts=posts)
+    return render_template('admin_dashboard.html', users=users, posts=posts,
+                           questions_with_answers=questions_with_answers)
 
 
 # delete user route
@@ -232,6 +241,41 @@ def delete_post(post_id):
         flash(f'Post with ID {post_id} not found!', 'danger')
 
     conn.close()
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/delete_question/<int:question_id>', methods=['POST'])
+@login_required  # Ensure only authorized users can delete questions
+def delete_question(question_id):
+    conn = get_db_connection()
+
+    # Check if the question exists
+    question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
+
+    if not question:
+        flash('Question not found!', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    # Fetch all answers related to this question
+    answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question_id,)).fetchall()
+
+    # Delete the associated attachments for each answer
+    for answer in answers:
+        if answer['attachment']:  # Assuming you store attachment filenames in an 'attachment' column
+            attachment_path = os.path.join(current_app.root_path, 'static/uploads', answer['attachment'])
+            if os.path.exists(attachment_path):
+                os.remove(attachment_path)
+
+    # Delete answers related to this question
+    conn.execute('DELETE FROM answers WHERE question_id = ?', (question_id,))
+
+    # Delete the question itself
+    conn.execute('DELETE FROM questions WHERE id = ?', (question_id,))
+
+    conn.commit()
+    conn.close()
+
+    flash('The question and all related answers (including attachments) have been deleted.', 'success')
     return redirect(url_for('admin_dashboard'))
 
 
@@ -385,7 +429,8 @@ def get_questions_and_answers(conn):
     for question in questions:
         answers = conn.execute('SELECT a.answer, a.created_at, u.firstname AS author FROM answers a '
                                'LEFT JOIN users u ON a.user_id = u.id '
-                               'WHERE a.question_id = ? ORDER BY a.created_at DESC LIMIT 1', (question['id'],)).fetchall()
+                               'WHERE a.question_id = ? ORDER BY a.created_at DESC LIMIT 1',
+                               (question['id'],)).fetchall()
 
         question_dict = dict(question)
         question_dict['answers'] = answers

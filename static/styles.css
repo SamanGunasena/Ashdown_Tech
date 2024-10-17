@@ -1,15 +1,9 @@
-body {
-    padding-top: 70px;
-}
 
-.card {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
 
-.container {
-    max-width: 960px;
-}
-
-h1, h5 {
-    font-weight: 700;
+#backToTopBtn {
+    display: none; /* Hidden by default */
+    position: fixed; /* Sticky position */
+    bottom: 20px; /* 20px from the bottom */
+    right: 30px; /* 30px from the right */
+    z-index: 99; /* On top of other content */
 }

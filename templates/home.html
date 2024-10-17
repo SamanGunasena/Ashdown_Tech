@@ -37,7 +37,7 @@
         {% endif %}
     </div>
 
-    <h1 class="text-center">Questions and Answers</h1>
+    <h1 class="text-center">FAQ</h1>
     <div class="container">
         <form action="{{ url_for('q_search') }}" method="get" class="mb-4">
             <div class="input-group">
@@ -83,4 +83,7 @@
             <p>No questions have been asked yet.</p>
         {% endif %}
     </div>
+<button onclick="topFunction()" id="backToTopBtn" class="btn btn-primary btn-lg" title="Go to top">
+    <i class="bi bi-arrow-up"></i> <!-- Bootstrap icon -->
+</button>
 {% endblock %}

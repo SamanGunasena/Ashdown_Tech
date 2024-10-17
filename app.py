@@ -59,7 +59,7 @@ def load_user(user_id):
 @app.route('/')
 def home():
     conn = get_db_connection()
-    posts = conn.execute('SELECT * FROM posts').fetchall()
+    posts = conn.execute('SELECT * FROM posts ORDER BY created_at DESC LIMIT 9').fetchall()
     # Fetch questions with answers using the helper function
     questions = get_questions_and_answers(conn)
     conn.close()
@@ -341,11 +341,11 @@ def answer_question(question_id):
 @app.route('/questions')
 def questions():
     conn = get_db_connection()
-    questions = conn.execute('SELECT * FROM questions').fetchall()
+    questions = conn.execute('SELECT * FROM questions ').fetchall()
 
     questions_with_answers = []
     for question in questions:
-        answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question['id'],)).fetchall()
+        answers = conn.execute('SELECT * FROM answers WHERE question_id = ? ', (question['id'],)).fetchall()
         questions_with_answers.append({
             'question': question['question'],
             'id': question['id'],
@@ -379,13 +379,13 @@ def ask_question():
 
 
 def get_questions_and_answers(conn):
-    questions = conn.execute('SELECT * FROM questions').fetchall()
+    questions = conn.execute('SELECT * FROM questions ORDER BY created_at DESC LIMIT 100').fetchall()
     questions_with_answers = []
 
     for question in questions:
         answers = conn.execute('SELECT a.answer, a.created_at, u.firstname AS author FROM answers a '
                                'LEFT JOIN users u ON a.user_id = u.id '
-                               'WHERE a.question_id = ?', (question['id'],)).fetchall()
+                               'WHERE a.question_id = ? ORDER BY a.created_at DESC LIMIT 1', (question['id'],)).fetchall()
 
         question_dict = dict(question)
         question_dict['answers'] = answers

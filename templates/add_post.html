@@ -7,22 +7,36 @@
     <div class="container mt-5">
         <form method="POST" enctype="multipart/form-data">
             {{ form.hidden_tag() }}
+
             <div class="mb-3">
                 {{ form.title.label(class="form-label") }}
                 {{ form.title(class="form-control", size=32) }}
+                {% if form.title.errors %}
+                    <div class="text-danger">{{ form.title.errors[0] }}</div>
+                {% endif %}
             </div>
+
             <div class="mb-3">
                 {{ form.content.label(class="form-label") }}
                 {{ form.content(class="form-control", rows=10) }}
+                {% if form.content.errors %}
+                    <div class="text-danger">{{ form.content.errors[0] }}</div>
+                {% endif %}
             </div>
+
             <div class="mb-3">
                 {{ form.file.label(class="form-label") }}
                 {{ form.file(class="form-control") }}
+                {% if form.file.errors %}
+                    <div class="text-danger">{{ form.file.errors[0] }}</div>
+                {% endif %}
             </div>
+
             <div class="mb-3 form-check">
-                {{ form.show_author.label(class="form-check-label") }}
                 {{ form.show_author(class="form-check-input") }}
+                {{ form.show_author.label(class="form-check-label") }}
             </div>
+
             <div>
                 {{ form.submit(class="btn btn-primary") }}
             </div>

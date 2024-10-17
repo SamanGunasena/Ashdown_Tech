@@ -1,4 +1,6 @@
-from flask import Flask, render_template, redirect, url_for, flash, session, request
+import uuid
+
+from flask import Flask, render_template, redirect, url_for, flash, session, request, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -321,9 +323,11 @@ def questions():
 @app.route('/ask_question', methods=['GET', 'POST'])
 @login_required
 def ask_question():
+    form = QuestionForm()
     if request.method == 'POST':
-        topic = request.form['topic']
-        question = request.form['question']
+
+        topic = form.topic.data
+        question = form.question.data
         author = current_user.firstname
 
         # Insert the new question into the database
@@ -335,7 +339,7 @@ def ask_question():
         flash('Your question has been submitted successfully!', 'success')
         return redirect(url_for('questions'))
 
-    return render_template('ask_question.html')
+    return render_template('ask_question.html', form=form)
 
 
 def get_questions_and_answers(conn):

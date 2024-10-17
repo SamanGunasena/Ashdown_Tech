@@ -20,16 +20,16 @@
                         <div class="card h-100">
                             <div class="card-body">
                                 <h5 class="card-title">
-                                    <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
+                                    <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title | e }}</a>
                                 </h5>
-                                <p class="card-text">{{ post.content[:150] }}...</p>  <!-- Show first 150 characters -->
+                                <p class="card-text">{{ post.content[:150] | e }}...</p>  <!-- Show first 150 characters -->
                                 {% if post.filename %}
                                     <p><a href="{{ url_for('static', filename='uploads/' ~ post.filename) }}" download>Download attachment</a></p>
                                 {% endif %}
                             </div>
                             <div class="card-footer text-muted">
                                 {% if post.show_author %}
-                                    Author: {{ post.author }}
+                                    Author: {{ post.author | e }}
                                 {% else %}
                                     Author: Anonymous
                                 {% endif %}

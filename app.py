@@ -2,13 +2,14 @@ import uuid
 
 from flask import Flask, render_template, redirect, url_for, flash, session, request, abort
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from markupsafe import escape
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import sqlite3
 import os
 from datetime import datetime
-from forms import PostForm
-from forms import QuestionForm
+from forms import PostForm, RegistrationForm, QuestionForm, AnswerForm
+
 
 UPLOAD_FOLDER = 'static/uploads/'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
@@ -70,41 +71,45 @@ def home():
 # user registration route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        firstname = request.form['firstname']
-        lastname = request.form['lastname']
-        email = request.form['email']
-        password = request.form['password']
-        hashed_password = generate_password_hash(password)
+    form = RegistrationForm()
 
+    if form.validate_on_submit():
+        firstname = form.firstname.data
+        lastname = form.lastname.data
+        email = form.email.data
+        password = generate_password_hash(form.password.data)  # Hash the password for security
+
+        # Save user to the database
         conn = get_db_connection()
-        conn.execute('INSERT INTO users (firstname,lastname, email, password, is_admin, is_approved) VALUES (?, ?, '
-                     '?, ?, 0, 0)',
-                     (firstname, lastname, email, hashed_password))
+        conn.execute('INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)',
+                     (firstname, lastname, email, password))
         conn.commit()
         conn.close()
 
-        flash('You have successfully registered!', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html')
+        flash('Your account has been created successfully!', 'success')
+        return redirect(url_for('login'))  # Redirect to login after registration
+
+    return render_template('register.html', form=form)
 
 
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
+        # Get and escape the user input
+        email = escape(request.form['email'])
         password = request.form['password']
 
         conn = get_db_connection()
+        # Use a parameterized query to prevent SQL injection
         user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
 
+        # Check if the user exists and if the password matches
         if user and check_password_hash(user['password'], password):
-
             if user['is_approved']:
-                user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'], user['password'],
-                                user['is_admin'], user['is_approved'])
+                user_obj = User(user['id'], user['firstname'], user['lastname'], user['email'],
+                                user['password'], user['is_admin'], user['is_approved'])
                 login_user(user_obj)
                 flash('You have been logged in!', 'success')
 
@@ -283,22 +288,39 @@ def q_search():
 @app.route('/answer_question/<int:question_id>', methods=['GET', 'POST'])
 @login_required
 def answer_question(question_id):
-    conn = get_db_connection()
-    question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
+    form = AnswerForm()
 
-    if request.method == 'POST':
-        answer = request.form['answer']
-        conn.execute('INSERT INTO answers (question_id, answer, author, user_id) VALUES (?, ?, ?, ?)',
-                     (question_id, answer, current_user.firstname, current_user.id))
+    conn = get_db_connection()
+
+    # Fetch the question and its related answers
+    question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
+    answers = conn.execute(
+        'SELECT a.answer, a.created_at, u.firstname AS author FROM answers a '
+        'LEFT JOIN users u ON a.user_id = u.id WHERE a.question_id = ?',
+        (question_id,)
+    ).fetchall()
+
+    if not question:
+        flash('Question not found!', 'danger')
+        return redirect(url_for('home'))
+
+    if form.validate_on_submit():
+        new_answer = form.answer.data
+        user_id = current_user.id  # Assuming you have a logged-in user
+
+        # Insert the new answer into the database
+        conn.execute(
+            'INSERT INTO answers (question_id, answer, author, user_id) VALUES (?, ?, ?, ?)',
+            (question_id, new_answer, current_user.firstname, current_user.id)
+        )
         conn.commit()
         conn.close()
+
         flash('Your answer has been submitted successfully!', 'success')
-        return redirect(url_for('questions'))
+        return redirect(url_for('answer_question', question_id=question_id))
 
-    answers = conn.execute('SELECT * FROM answers WHERE question_id = ?', (question_id,)).fetchall()
     conn.close()
-
-    return render_template('answer_question.html', question=question, answers=answers)
+    return render_template('answer_question.html', question=question, answers=answers, form=form)
 
 
 @app.route('/questions')

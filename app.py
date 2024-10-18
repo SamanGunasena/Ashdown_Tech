@@ -1,6 +1,5 @@
-
-
 from flask import Flask, render_template, redirect, url_for, flash, session, request, abort, current_app
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf import CSRFProtect
 from markupsafe import escape
@@ -9,18 +8,41 @@ from werkzeug.utils import secure_filename
 import sqlite3
 import os
 from datetime import datetime
+from flask_mail import Mail, Message
+
+from wtforms.validators import ValidationError
+
 from forms import PostForm, RegistrationForm, QuestionForm, AnswerForm, LoginForm
+from dotenv import load_dotenv
+from flask_limiter import Limiter
 
 UPLOAD_FOLDER = 'static/uploads/'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
-
+load_dotenv()
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'Abcde1234!'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
+# secure cookie settings
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+# Configure the Flask-Mail settings
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # Replace with your SMTP server
+app.config['MAIL_PORT'] = 587  # For TLS
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'ashdowncontrolsr58k@gmail.com'  # Your email
+app.config['MAIL_PASSWORD'] = 'qgxwmewfcyevpgmk'  # Your email password
+app.config['MAIL_DEFAULT_SENDER'] = 'ashdowncontrolsr58k@gmail.com'  # Default sender
+
+mail = Mail(app)
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+limiter = Limiter(key_func=get_remote_address)
+
+# Initialize the limiter with the app
+limiter.init_app(app)
 
 # Initialize the login manager
 login_manager = LoginManager()
@@ -83,26 +105,37 @@ def register():
     form = RegistrationForm()
 
     if form.validate_on_submit():
+        if email_exists(form.email.data):
+            form.email.errors.append('That email is already registered. Please choose a different one.')
+            return render_template('register.html', form=form)
+
         firstname = form.firstname.data
         lastname = form.lastname.data
-        email = form.email.data
-        password = generate_password_hash(form.password.data)  # Hash the password for security
+        password = generate_password_hash(form.password.data)
 
         # Save user to the database
         conn = get_db_connection()
         conn.execute('INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)',
-                     (firstname, lastname, email, password))
+                     (firstname, lastname, form.email.data, password))
         conn.commit()
         conn.close()
 
         flash('Your account has been created successfully!', 'success')
-        return redirect(url_for('login'))  # Redirect to login after registration
+        return redirect(url_for('login'))
 
     return render_template('register.html', form=form)
 
 
+def email_exists(email):
+    conn = get_db_connection()
+    existing_user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    conn.close()
+    return existing_user is not None
+
+
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")  # Limit login attempts
 def login():
     form = LoginForm()  # Create an instance of the LoginForm
 
@@ -120,6 +153,10 @@ def login():
                                 user['password'], user['is_admin'], user['is_approved'])
                 login_user(user_obj)
                 flash('You have been logged in!', 'success')
+
+                next_page = request.args.get('next')  # Check if there's a 'next' parameter
+                if next_page:  # Redirect to 'next' if available
+                    return redirect(next_page)
 
                 if user['is_admin']:
                     return redirect(url_for('admin_dashboard'))
@@ -376,7 +413,15 @@ def answer_question(question_id):
             (question_id, new_answer, current_user.firstname, user_id, attachment_filename)
         )
         conn.commit()
+
+        # Fetch the question author's email
+        author_email = conn.execute('SELECT email FROM users WHERE id = ?', (question['author_id'],)).fetchone()
+
         conn.close()
+
+        # Email the question's author
+        if author_email:
+            send_answer_notification(author_email['email'], question, new_answer)
 
         flash('Your answer has been submitted successfully!', 'success')
         return redirect(url_for('answer_question', question_id=question_id))
@@ -412,12 +457,18 @@ def ask_question():
         topic = form.topic.data
         question = form.question.data
         author = current_user.firstname
+        author_id = current_user.id
 
         # Insert the new question into the database
         conn = get_db_connection()
-        conn.execute('INSERT INTO questions (topic, question, author) VALUES (?, ?, ?)', (topic, question, author))
+        cursor = conn.execute('INSERT INTO questions (topic, question, author, author_id) VALUES (?, ?, ?, ?)',
+                              (topic, question, author, author_id))
+        question_id = cursor.lastrowid
         conn.commit()
         conn.close()
+
+        # Send notification to all users
+        send_notification_email(question, topic, author, question_id)
 
         flash('Your question has been submitted successfully!', 'success')
         return redirect(url_for('questions'))
@@ -440,6 +491,58 @@ def get_questions_and_answers(conn):
         questions_with_answers.append(question_dict)
 
     return questions_with_answers
+
+
+def send_notification_email(question, topic, author, question_id):
+    conn = get_db_connection()
+    users = conn.execute('SELECT email FROM users').fetchall()
+    conn.close()
+
+    # URL for the question detail page
+    question_link = url_for('question_detail', question_id=question_id, _external=True)
+
+    for user in users:
+        try:
+            msg = Message(subject=f'New Question on {topic} by {author}',
+                          recipients=[user['email']])
+            msg.body = f"New Topic: {topic}\n\n" \
+                       f"Question: {question}\n\n" \
+                       f"Asked by: {author}\n\n" \
+                       f"View and answer the question here: {question_link}"
+            mail.send(msg)
+        except Exception as e:
+            print(f'Failed to send email to {user["email"]}: {e}')
+
+
+@app.route('/question/<int:question_id>')
+def question_detail(question_id):
+    conn = get_db_connection()
+    question = conn.execute('SELECT * FROM questions WHERE id = ?', (question_id,)).fetchone()
+    answers = conn.execute(
+        'SELECT a.answer, a.created_at, a.attachment, u.firstname AS author FROM answers a '
+        'LEFT JOIN users u ON a.user_id = u.id WHERE a.question_id = ?',
+        (question_id,)
+    ).fetchall()
+    conn.close()
+
+    if not question:
+        flash('Question not found!', 'danger')
+        return redirect(url_for('home'))
+
+    return render_template('question_detail.html', question=question, answers=answers)
+
+
+def send_answer_notification(author_email, question, new_answer):
+    msg = Message(
+        subject="New Answer to Your Question",
+        recipients=[author_email],  # The email address of the question's author
+        body=f"Hello,\n\nYour question titled '{question['topic']}' has received a new answer:\n\n{new_answer}\n\nBest regards,\nYour Website Team"
+    )
+    try:
+        mail.send(msg)
+        print(f"Notification sent to {author_email}.")
+    except Exception as e:
+        print(f"Failed to send email: {str(e)}")
 
 
 if __name__ == '__main__':
@@ -472,7 +575,9 @@ if __name__ == '__main__':
                 topic TEXT NOT NULL,
                 question TEXT NOT NULL,
                 author TEXT NOT NULL,
+                author_id TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                
             )
         ''')
 
@@ -487,6 +592,7 @@ if __name__ == '__main__':
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 attachment TEXT,
                 FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+                
             )
         ''')
 

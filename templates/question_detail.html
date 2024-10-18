@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Question Details{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1>{{ question['topic'] }}</h1> <!-- Display the topic -->
+        <p><strong>Question:</strong></p>
+        <p>{{ question['content'] }}</p> <!-- Display the question -->
+        <p><strong>Asked by:</strong> {{ question['author'] }}</p> <!-- Display the author -->
+
+        <h3>Answers:</h3>
+        {% if answers %}
+            <ul class="list-group mb-4">
+                {% for answer in answers %}
+                    <li class="list-group-item">
+                        <p><strong>{{ answer['author'] }}:</strong> {{ answer['answer'] }}</p>
+                        <p><em>Answered on {{ answer['created_at'] }}</em></p>
+                        {% if answer['attachment'] %}
+                            <p><a href="{{ url_for('download_file', filename=answer['attachment']) }}">Download attachment</a></p>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No answers yet. Be the first to answer!</p>
+        {% endif %}
+
+        <!-- Add an "Answer" button -->
+        <a href="{{ url_for('answer_question', question_id=question['id']) }}" class="btn btn-primary">Answer</a>
+    </div>
+{% endblock %}

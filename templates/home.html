@@ -51,7 +51,8 @@
             <ul class="list-group">
                 {% for question in questions %}
                     <li class="list-group-item">
-                        <h5>Q: {{ question['topic']|e }}</h5>
+                        <h5>Q: <a href="{{ url_for('question_detail', question_id=question.id) }}">{{ question['topic']|e }}</a></h5>
+
                         <h6>{{ question['question']|e }}</h6>
 
                         <!-- Display all answers related to the question -->

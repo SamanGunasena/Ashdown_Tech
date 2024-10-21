@@ -55,11 +55,17 @@
     </div>
 
     <!-- Footer -->
-    <footer class="bg-light text-center text-lg-start mt-auto"> <!-- mt-auto ensures footer stays at the bottom -->
-        <div class="container p-4">
-            <p class="text-center">© {{ current_year }} Ashdown TechLab. All rights reserved.</p>
-        </div>
-    </footer>
+    <footer class="bg-light text-center text-lg-start mt-auto">
+    <!-- Logo Centered -->
+    <div class="logo-container d-flex justify-content-center p-3">
+        <img src="{{ url_for('static', filename='images/ashdownlogo.png') }}" alt="Ashdown Logo" class="img-fluid" style="max-height: 40px;"> <!-- Adjust height as needed -->
+    </div>
+
+    <!-- Copyright Section with Black Border -->
+    <div class="container-fluid bg-dark text-white py-2"> <!-- Added bg-dark for black background and text-white for contrast -->
+        <p class="text-center mb-0">© {{ current_year }} Ashdown TechLab. All rights reserved.</p>
+    </div>
+</footer>
     <script>
         // Get the button
         var backToTopBtn = document.getElementById("backToTopBtn");

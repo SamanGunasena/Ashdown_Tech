@@ -204,13 +204,45 @@ def add_post():
         conn = get_db_connection()
         conn.execute('INSERT INTO posts (title, content, author, filename, show_author) VALUES (?, ?, ?, ?, ?)',
                      (title, content, current_user.firstname, filename, show_author))
+        post_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]  # Get the new post's ID
         conn.commit()
+
+        # Fetch all user emails from the database
+        users = conn.execute('SELECT email FROM users').fetchall()
         conn.close()
+
+        # Send email notification to all users
+        post_url = url_for('post_detail', post_id=post_id, _external=True)
+        send_new_post_notification(users, title, content, post_url)
 
         flash('Post added successfully!', 'success')
         return redirect(url_for('home'))
 
     return render_template('add_post.html', form=form)  # Pass the form to the template
+
+
+def send_new_post_notification(users, post_title, post_content, post_url):
+    """Send email notifications to all users about a new post."""
+    subject = "New Post Alert!"
+    sender = app.config['MAIL_DEFAULT_SENDER']
+
+    for user in users:
+        recipient = user['email']  # Assuming your query returns a dictionary with 'email' key
+        msg = Message(subject, recipients=[recipient], sender=sender)
+
+        msg.body = f"""Hello,
+
+A new post titled "{post_title}" has been added. Here's a preview:
+
+{post_content[:150]}...
+
+Read the full post here: {post_url}
+
+Best regards,
+Your Website Team
+"""
+        # Send the email
+        mail.send(msg)
 
 
 # admin dashboard routes

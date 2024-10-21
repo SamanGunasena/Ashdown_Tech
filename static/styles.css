@@ -7,3 +7,12 @@
     right: 30px; /* 30px from the right */
     z-index: 99; /* On top of other content */
 }
+
+.navbar-brand {
+    color: #239b61 !important; /* Apply green color to "Ashdown TechLab" */
+    font-weight: bold;          /* Make "Ashdown TechLab" bold */
+}
+
+.nav-link:hover {
+    color: #1e8b55 !important;   /* Optional: Darken the color on hover */
+}
